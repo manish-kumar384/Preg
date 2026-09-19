@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
+import random
 from datetime import datetime, date, timedelta
-import json
 
 # ==========================================
 # 1. APP CONFIG & SOOTHING THEME
@@ -39,6 +39,7 @@ CALM_CSS = """
         padding: 16px 20px;
         text-align: center;
         border: 1px solid #EADBCC;
+        height: 100%;
     }
     .metric-val {
         font-size: 1.8rem;
@@ -73,13 +74,22 @@ CALM_CSS = """
         border-color: #CBB4A1;
         color: #3B2E27;
     }
+    .name-card {
+        background: #FFFBF7;
+        border-left: 4px solid #D8C7B8;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+    }
 </style>
 """
 st.markdown(CALM_CSS, unsafe_allow_html=True)
 
 # ==========================================
-# 2. EMBEDDED KNOWLEDGE & MILESTONES DATA
+# 2. EMBEDDED KNOWLEDGE DATA
 # ==========================================
+
+# Overview Benchmarks
 WEEKS_DATA = {
     4: {"size": "Poppy seed", "len": "1 mm", "wt": "< 1 g", "milestone": "Implantation complete; amniotic sac begins forming."},
     8: {"size": "Raspberry", "len": "1.6 cm", "wt": "1 g", "milestone": "Webbed fingers and toes emerge; neural pathways branch out."},
@@ -93,15 +103,80 @@ WEEKS_DATA = {
     40: {"size": "Watermelon", "len": "51.2 cm", "wt": "3.4 kg", "milestone": "Full term; ready to meet family and greet the world."},
 }
 
+# Detailed Fetal Development milestones (Anatomy & Sensory)
+FETAL_DEVELOPMENT = {
+    "Weeks 4-6": {
+        "title": "The Foundation",
+        "structure": "The embryo develops three layers (ectoderm, mesoderm, endoderm) that will form all organs and tissues. The neural tube (future brain and spinal cord) closes. Tiny arm and leg buds begin to appear.",
+        "senses": "The tiny heart tube begins to pulse. Structures that will eventually become the eyes, ears, and mouth begin to take form."
+    },
+    "Weeks 7-10": {
+        "title": "Limbs & Major Organs",
+        "structure": "All major organs begin developing. Webbed hands and feet emerge and slowly lose their webbing to become distinct fingers and toes. Elbows can now bend. Cartilage starts transitioning to bone.",
+        "senses": "The head becomes rounder and the face takes a more human profile. Taste buds begin forming, and the initial buds for future teeth appear in the gums."
+    },
+    "Weeks 11-14": {
+        "title": "Reflexes & Growth",
+        "structure": "The fetus has a fully developed umbilical cord. Kidneys start producing urine, and the liver produces bile. Vocal cords are forming. The external genitals develop fully.",
+        "senses": "The fetus starts practicing movements like opening/closing fists and the mouth. It begins swallowing amniotic fluid and can even yawn or stretch."
+    },
+    "Weeks 15-19": {
+        "title": "Movement & Senses",
+        "structure": "A soft, fine hair called 'lanugo' covers the body to keep the baby warm. The skeleton continues hardening. A white protective coating (vernix) covers the skin.",
+        "senses": "Ears move to their final position and become sensitive enough to hear your voice and heartbeat. Eyes remain closed but can react to bright light. Quickening (feeling the baby move) typically begins."
+    },
+    "Weeks 20-24": {
+        "title": "Halfway & Viability",
+        "structure": "Bone marrow begins producing blood cells. The lungs start developing 'surfactant', a substance that keeps air sacs open. Fingerprints and footprints are permanently formed.",
+        "senses": "The area of the brain responsible for the five senses rapidly develops. The baby establishes distinct sleep-wake cycles and responds to external sounds with a change in pulse or movement."
+    },
+    "Weeks 25-29": {
+        "title": "Opening Eyes",
+        "structure": "Fat continues to accumulate under the skin, smoothing out wrinkles. The brain undergoes massive growth, developing deep ridges and folds.",
+        "senses": "Eyelids, which have been fused shut, blink open. The baby can see light and shadows. Lung practice breathing motions become more rhythmic."
+    },
+    "Weeks 30-35": {
+        "title": "Gaining Weight & Strength",
+        "structure": "Lanugo (fine hair) begins to fall off. The bones are fully formed but remain somewhat pliable. The baby gains roughly half a pound a week.",
+        "senses": "Pupils can dilate and constrict in response to light. Hearing is fully mature. Kicks become strong and forceful."
+    },
+    "Weeks 36-40": {
+        "title": "Full Term & Preparation",
+        "structure": "Lungs are mature and ready for the first breath. The baby often 'drops' lower into the mother's pelvis. The skull bones remain unfused to allow passage through the birth canal.",
+        "senses": "The digestive system contains meconium (first stool). The baby is fully capable of sensory processing outside the womb and is ready to be born!"
+    }
+}
+
+# Indian Baby Names Database
+INDIAN_NAMES = [
+    {"name": "Aarav", "gender": "Boy", "meaning": "Peaceful, calm", "origin": "Modern Sanskrit"},
+    {"name": "Advik", "gender": "Boy", "meaning": "Unique, one of a kind", "origin": "Modern Hindu"},
+    {"name": "Vivaan", "gender": "Boy", "meaning": "Full of life, rays of the morning sun", "origin": "Modern Sanskrit"},
+    {"name": "Reyansh", "gender": "Boy", "meaning": "Ray of light, part of Lord Vishnu", "origin": "Spiritual"},
+    {"name": "Shaurya", "gender": "Boy", "meaning": "Bravery, heroism", "origin": "Traditional"},
+    {"name": "Ishaan", "gender": "Boy", "meaning": "Sun, Lord Shiva", "origin": "Spiritual"},
+    {"name": "Atharv", "gender": "Boy", "meaning": "Sacred Vedic name, Lord Ganesha", "origin": "Traditional"},
+    {"name": "Kiaan", "gender": "Boy", "meaning": "Grace of God, ancient", "origin": "Modern Hindu"},
+    {"name": "Ojas", "gender": "Boy", "meaning": "Energy, brilliance, vitality", "origin": "Traditional"},
+    {"name": "Vedant", "gender": "Boy", "meaning": "Knowledge of the Vedas", "origin": "Spiritual"},
+    
+    {"name": "Aadhya", "gender": "Girl", "meaning": "First power, Goddess Durga", "origin": "Spiritual"},
+    {"name": "Anaya", "gender": "Girl", "meaning": "Caring, protection, God's answer", "origin": "Modern Hindu"},
+    {"name": "Myra", "gender": "Girl", "meaning": "Beloved, divine, sweet", "origin": "Modern"},
+    {"name": "Kiara", "gender": "Girl", "meaning": "Bright, clear, dark-haired", "origin": "Modern"},
+    {"name": "Saanvi", "gender": "Girl", "meaning": "Goddess Lakshmi, one who is followed", "origin": "Spiritual"},
+    {"name": "Avni", "gender": "Girl", "meaning": "The Earth", "origin": "Nature-inspired"},
+    {"name": "Veda", "gender": "Girl", "meaning": "Sacred knowledge, wisdom", "origin": "Traditional"},
+    {"name": "Ira", "gender": "Girl", "meaning": "Goddess Saraswati, Earth", "origin": "Spiritual"},
+    {"name": "Kavya", "gender": "Girl", "meaning": "Poetry in motion", "origin": "Traditional"},
+    {"name": "Prisha", "gender": "Girl", "meaning": "God's gift, beloved", "origin": "Traditional"}
+]
+
 DEFAULT_CHECKLIST = [
     {"cat": "Hospital Bag (Mom)", "item": "Warm comfortable non-slip socks & slippers", "done": False},
-    {"cat": "Hospital Bag (Mom)", "item": "Loose button-down robe & soft nightgown", "done": False},
-    {"cat": "Hospital Bag (Mom)", "item": "Long phone charger cable & lip balm", "done": True},
     {"cat": "Hospital Bag (Mom)", "item": "Comfortable nursing bras & soft pads", "done": False},
     {"cat": "Hospital Bag (Baby)", "item": "Installed rear-facing infant car seat", "done": False},
-    {"cat": "Hospital Bag (Baby)", "item": "2-3 soft newborn onesies & knotted gowns", "done": False},
-    {"cat": "Hospital Bag (Baby)", "item": "Swaddle blankets & gentle newborn hat", "done": False},
-    {"cat": "Nursery & Home Prep", "item": "Washed baby bedding and clothes", "done": False},
+    {"cat": "Hospital Bag (Baby)", "item": "2-3 soft newborn onesies & swaddle blankets", "done": False},
     {"cat": "Nursery & Home Prep", "item": "Safe sleep crib or bassinet assembled", "done": False},
     {"cat": "Nursery & Home Prep", "item": "Batch freeze healthy postpartum meals", "done": False},
 ]
@@ -122,23 +197,13 @@ if "conception_or_due" not in st.session_state:
 if "calc_method" not in st.session_state:
     st.session_state.calc_method = "Due Date"
 if "journal_entries" not in st.session_state:
-    st.session_state.journal_entries = [
-        {"date": str(date.today() - timedelta(days=18)), "week": 12, "mood": "Serene 🌿", "symptoms": ["Mild Fatigue"], "notes": "Heard the strong, steady heartbeat for the first time. Pure relief.", "photo_caption": "First ultrasound keepsake"},
-        {"date": str(date.today() - timedelta(days=4)), "week": 14, "mood": "Energetic ☀️", "symptoms": ["Hunger Waves"], "notes": "Second trimester energy has kicked in. Went for a tranquil morning garden walk.", "photo_caption": ""},
-    ]
+    st.session_state.journal_entries = []
 if "kick_sessions" not in st.session_state:
-    st.session_state.kick_sessions = [
-        {"timestamp": (datetime.now() - timedelta(hours=36)).strftime("%Y-%m-%d %H:%M"), "count": 10, "minutes": 18, "notes": "Very active right after a cool glass of apple juice."},
-        {"timestamp": (datetime.now() - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M"), "count": 10, "minutes": 22, "notes": "Evening kicks while listening to acoustic music."},
-    ]
+    st.session_state.kick_sessions = []
 if "checklist" not in st.session_state:
     st.session_state.checklist = DEFAULT_CHECKLIST.copy()
 if "baby_names" not in st.session_state:
-    st.session_state.baby_names = [
-        {"name": "Mira", "meaning": "Peace, Ocean, Wonder", "liked_by": "Both"},
-        {"name": "Julian", "meaning": "Youthful, Sky father", "liked_by": "Partner"},
-        {"name": "Aria", "meaning": "Gentle air, melody", "liked_by": "Mom"},
-    ]
+    st.session_state.baby_names = []
 
 # ==========================================
 # 4. HELPER COMPUTATIONS
@@ -168,14 +233,9 @@ def calculate_timeline(base_date: date, method: str):
         trimester = "3rd Trimester (Anticipation & Arrival)"
 
     return {
-        "lmp": lmp_date,
-        "due": due_date,
-        "weeks": weeks,
-        "days": days_rem,
-        "days_pregnant": days_pregnant,
-        "days_left": days_to_go,
-        "progress": progress_pct,
-        "trimester": trimester
+        "lmp": lmp_date, "due": due_date, "weeks": weeks, "days": days_rem,
+        "days_pregnant": days_pregnant, "days_left": days_to_go,
+        "progress": progress_pct, "trimester": trimester
     }
 
 def get_fruit_comparison(current_week: int):
@@ -191,25 +251,17 @@ with st.sidebar:
     st.caption("A peaceful companion for your journey to parenthood.")
     st.write("---")
 
-    calc_method = st.selectbox(
-        "Calculate journey based on:",
-        ["Due Date", "First Day of Last Period (LMP)", "Conception Date"],
-        index=0
-    )
+    calc_method = st.selectbox("Calculate journey based on:", ["Due Date", "First Day of Last Period (LMP)", "Conception Date"], index=0)
     st.session_state.calc_method = calc_method
-
-    picked_date = st.date_input(
-        f"Select your {calc_method.lower()}:",
-        value=st.session_state.conception_or_due
-    )
+    picked_date = st.date_input(f"Select your {calc_method.lower()}:", value=st.session_state.conception_or_due)
     st.session_state.conception_or_due = picked_date
 
     tl = calculate_timeline(picked_date, calc_method)
 
     st.write("---")
-    st.markdown("### 🕊️ Today's Daily Affirmation")
+    st.markdown("### 🕊️ Today's Affirmation")
     affirmations = [
-        "My body knows exactly how to nurture, shelter, and grow this precious life.",
+        "My body knows exactly how to nurture and shelter this precious life.",
         "I welcome each feeling and change with gentle grace and patience.",
         "Peace flows through me, giving peaceful serenity to my little one.",
         "Today, I slow down, breathe deeply, and trust the innate wisdom of nature."
@@ -219,19 +271,15 @@ with st.sidebar:
 # ==========================================
 # 6. MAIN CONTENT TABS
 # ==========================================
-tab_overview, tab_journal, tab_kick, tab_checklist, tab_names, tab_care = st.tabs([
-    "🌿 Journey Overview",
-    "📖 Memory Journal",
-    "👣 Kick Counter",
-    "🎒 Hospital & Nesting",
-    "✨ Baby Names Garden",
-    "🩺 Prenatal Milestones"
+tabs = st.tabs([
+    "🌿 Overview", "🌱 Fetal Dev", "📖 Journal", "👣 Kicks", 
+    "🎒 Nesting", "✨ Baby Names", "🩺 Checkups"
 ])
 
 # ----------------------------------------------------
 # TAB 1: JOURNEY OVERVIEW
 # ----------------------------------------------------
-with tab_overview:
+with tabs[0]:
     fruit = get_fruit_comparison(tl["weeks"])
 
     st.markdown(f"""
@@ -245,193 +293,148 @@ with tab_overview:
     </div>
     """, unsafe_allow_html=True)
 
-    # Key Metrics Overview
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{tl['days_left']}</div><div class='metric-label'>Days to Welcome Baby</div></div>", unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['size']}</div><div class='metric-label'>Comparable Size</div></div>", unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['len']}</div><div class='metric-label'>Approx. Length</div></div>", unsafe_allow_html=True)
-    with c4:
-        st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['wt']}</div><div class='metric-label'>Approx. Weight</div></div>", unsafe_allow_html=True)
+    with c1: st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{tl['days_left']}</div><div class='metric-label'>Days Left</div></div>", unsafe_allow_html=True)
+    with c2: st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['size']}</div><div class='metric-label'>Comparable Size</div></div>", unsafe_allow_html=True)
+    with c3: st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['len']}</div><div class='metric-label'>Approx. Length</div></div>", unsafe_allow_html=True)
+    with c4: st.markdown(f"<div class='metric-bubble'><div class='metric-val'>{fruit['wt']}</div><div class='metric-label'>Approx. Weight</div></div>", unsafe_allow_html=True)
 
-    st.write("")
-    st.markdown("<p style='font-weight:600; color:#6B584D; margin-bottom:4px;'>Journey Progression</p>", unsafe_allow_html=True)
+    st.write("<br>", unsafe_allow_html=True)
     st.progress(tl["progress"])
     st.caption(f"{int(tl['progress']*100)}% completed — Every day is an extraordinary chapter of growth.")
 
-    st.write("---")
-    st.subheader("💡 Gentle Wellness Reflection for this Stage")
-    co1, co2 = st.columns(2)
-    with co1:
-        st.markdown("""
-        **Rest & Restoration**
-        * Prioritize elevated feet for 15-20 minutes in the late afternoon.
-        * Stay hydrated with room-temperature water infused with lemon or mint.
-        * Allow yourself afternoon micro-naps without guilt.
-        """)
-    with co2:
-        st.markdown("""
-        **Mindful Connection**
-        * Spend 5 minutes every evening placing warm hands over the belly.
-        * Soft humming and familiar voices stimulate auditory nerve development.
-        * Simple stretching or pelvic tilts keep hips loose and comfortable.
-        """)
+# ----------------------------------------------------
+# TAB 2: FETAL DEVELOPMENT (NEW)
+# ----------------------------------------------------
+with tabs[1]:
+    st.subheader("🌱 Week-by-Week Fetal Development")
+    st.caption("Explore how your baby's anatomy, organs, and senses miraculously unfold over 40 weeks.")
+    
+    selected_phase = st.select_slider(
+        "Select a timeline phase to view details:",
+        options=list(FETAL_DEVELOPMENT.keys()),
+        value=list(FETAL_DEVELOPMENT.keys())[min(len(FETAL_DEVELOPMENT)-1, tl["weeks"] // 5)]
+    )
+    
+    dev_data = FETAL_DEVELOPMENT[selected_phase]
+    
+    st.markdown(f"""
+    <div class='main-card'>
+        <h3 style='color:#6B584D; margin-top:0;'>{selected_phase}: {dev_data['title']}</h3>
+        <hr style='border:1px solid #F0EAE1; margin-bottom:15px;'>
+        <h5 style='color:#8C6D62;'>🧬 Structure & Organs</h5>
+        <p style='color:#5D4A3E; line-height:1.6;'>{dev_data['structure']}</p>
+        <br>
+        <h5 style='color:#8C6D62;'>👂 Senses & Reflexes</h5>
+        <p style='color:#5D4A3E; line-height:1.6;'>{dev_data['senses']}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# TAB 2: MEMORY JOURNAL
+# TAB 3: MEMORY JOURNAL
 # ----------------------------------------------------
-with tab_journal:
-    st.subheader("📖 Your Keepsake Journal")
-    st.caption("Documenting the small wonders, thoughts, and fluttery milestones you'll treasure later.")
-
-    with st.expander("✍️ Pen a New Entry / Memory", expanded=False):
-        col_j1, col_j2 = st.columns([1, 2])
-        with col_j1:
-            entry_date = st.date_input("Entry Date", date.today())
-            entry_mood = st.selectbox("Current Mood", ["Serene 🌿", "Grateful 🌸", "A Bit Tired ☁️", "Radiant & Joyful ☀️", "Sensitive 🌊"])
-            entry_symptoms = st.multiselect("Physical Signs & Sensations", [
-                "Morning Sickness", "Fluttering Kicks", "Glowing Skin",
-                "Heartburn", "Food Cravings", "Mild Fatigue", "Back Stretch"
-            ])
-            entry_caption = st.text_input("Memory Label / Tag", placeholder="e.g., Felt first kick today!")
-        with col_j2:
-            entry_notes = st.text_area("Your Words, Reflections & Notes to Baby", height=160, placeholder="Write a few gentle thoughts about what today felt like...")
-
-        if st.button("Save Memory to Journal"):
-            new_entry = {
-                "date": str(entry_date),
-                "week": tl["weeks"],
-                "mood": entry_mood,
-                "symptoms": entry_symptoms,
-                "notes": entry_notes,
-                "photo_caption": entry_caption
-            }
-            st.session_state.journal_entries.insert(0, new_entry)
-            st.success("Memory woven into your journal archive.")
-
-    st.write("")
+with tabs[2]:
+    st.subheader("📖 Keepsake Journal")
+    with st.expander("✍️ Pen a New Memory", expanded=False):
+        j1, j2 = st.columns([1, 2])
+        with j1:
+            e_date = st.date_input("Date", date.today())
+            e_mood = st.selectbox("Mood", ["Serene 🌿", "Grateful 🌸", "Tired ☁️", "Joyful ☀️"])
+        with j2:
+            e_notes = st.text_area("Your Reflections", height=100)
+        if st.button("Save Memory"):
+            st.session_state.journal_entries.insert(0, {"date": str(e_date), "week": tl["weeks"], "mood": e_mood, "notes": e_notes})
+            st.success("Memory archived.")
+            
     for item in st.session_state.journal_entries:
-        st.markdown(f"""
-        <div class='main-card'>
-            <div style='display:flex; justify-content:space-between; align-items:center;'>
-                <span style='font-size:1.1rem; font-weight:700; color:#5D4A3E;'>Week {item['week']} — {item['date']}</span>
-                <span class='highlight-pill'>{item['mood']}</span>
-            </div>
-            <p style='color:#75655A; font-style:italic; margin-top:8px; margin-bottom:10px;'>"{item['notes']}"</p>
-            <div style='font-size:0.85rem; color:#8D7F75;'>
-                <b>Noted Sensations:</b> {', '.join(item['symptoms']) if item['symptoms'] else 'Peaceful resting'}
-                {f" · <b>Tag:</b> {item['photo_caption']}" if item.get('photo_caption') else ''}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='main-card'><b>Week {item['week']} ({item['date']})</b> — {item['mood']}<br><br><i>\"{item['notes']}\"</i></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# TAB 3: KICK COUNTER
+# TAB 4: KICK COUNTER
 # ----------------------------------------------------
-with tab_kick:
-    st.subheader("👣 Fetal Movement & Kick Session Tracker")
-    st.caption("Doctors often recommend noting the time it takes to count 10 distinct movements (usually within two hours).")
-
-    k_col1, k_col2 = st.columns([1, 1])
-    with k_col1:
-        st.markdown("""
-        <div class='main-card'>
-            <h4>Record a Movement Session</h4>
-            <p style='color:#7A6E64; font-size:0.9rem;'>Settle into a comfortable side-lying position, relax, and log when your baby is active.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        session_minutes = st.number_input("Minutes taken to reach 10 kicks:", min_value=1, max_value=180, value=20)
-        session_notes = st.text_input("Context / Observations:", placeholder="e.g., After cold smoothie, music playing")
-
-        if st.button("Save Kick Session"):
-            st.session_state.kick_sessions.insert(0, {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "count": 10,
-                "minutes": int(session_minutes),
-                "notes": session_notes
-            })
-            st.success("Session saved.")
-
-    with k_col2:
-        st.markdown("#### Recent Movement Sessions")
-        if st.session_state.kick_sessions:
-            df_kicks = pd.DataFrame(st.session_state.kick_sessions)
-            st.dataframe(df_kicks, hide_index=True, use_container_width=True)
-        else:
-            st.info("No recorded kick sessions yet.")
+with tabs[3]:
+    st.subheader("👣 Kick Counter")
+    c_mins = st.number_input("Minutes taken for 10 movements:", 1, 120, 20)
+    c_notes = st.text_input("Context (e.g., after drinking juice)")
+    if st.button("Log Kicks"):
+        st.session_state.kick_sessions.insert(0, {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "mins": c_mins, "notes": c_notes})
+    if st.session_state.kick_sessions:
+        st.dataframe(pd.DataFrame(st.session_state.kick_sessions), use_container_width=True)
 
 # ----------------------------------------------------
-# TAB 4: HOSPITAL BAG & NESTING CHECKLIST
+# TAB 5: NESTING CHECKLIST
 # ----------------------------------------------------
-with tab_checklist:
-    st.subheader("🎒 Hospital Bag & Home Nesting Checklist")
-    st.caption("Check off items gently as you complete them so you feel confident and prepared.")
-
+with tabs[4]:
+    st.subheader("🎒 Nesting & Hospital Prep")
     categories = list(set(i["cat"] for i in st.session_state.checklist))
     for cat in sorted(categories):
         st.markdown(f"##### {cat}")
-        items = [x for x in st.session_state.checklist if x["cat"] == cat]
-        for idx, item in enumerate(items):
-            key = f"chk_{cat}_{idx}"
-            checked = st.checkbox(item["item"], value=item["done"], key=key)
+        for idx, item in enumerate([x for x in st.session_state.checklist if x["cat"] == cat]):
+            checked = st.checkbox(item["item"], value=item["done"], key=f"chk_{cat}_{idx}")
             item["done"] = checked
 
-    with st.expander("➕ Add Custom Preparation Item"):
-        c_cat = st.selectbox("Category", ["Hospital Bag (Mom)", "Hospital Bag (Baby)", "Nursery & Home Prep", "Partner Essentials"])
-        c_item = st.text_input("Item Description")
-        if st.button("Add to List"):
-            if c_item.strip():
-                st.session_state.checklist.append({"cat": c_cat, "item": c_item.strip(), "done": False})
-                st.rerun()
-
 # ----------------------------------------------------
-# TAB 5: BABY NAMES GARDEN
+# TAB 6: INDIAN BABY NAMES (NEW)
 # ----------------------------------------------------
-with tab_names:
-    st.subheader("✨ Baby Names Garden")
-    st.caption("Collect and review names you and your partner cherish.")
+with tabs[5]:
+    st.subheader("✨ Indian Baby Name Generator")
+    st.caption("Discover meaningful modern and traditional names. Save your favorites to your garden.")
+    
+    col_n1, col_n2, col_n3 = st.columns([1, 1, 1])
+    with col_n1:
+        gender_filter = st.selectbox("Gender", ["All", "Boy", "Girl"])
+    with col_n2:
+        letter_filter = st.selectbox("Starting Letter", ["Any"] + [chr(i) for i in range(65, 91)])
+    with col_n3:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("Surprise Me!", use_container_width=True):
+            filtered_names = INDIAN_NAMES
+            if gender_filter != "All":
+                filtered_names = [n for n in filtered_names if n["gender"] == gender_filter]
+            if letter_filter != "Any":
+                filtered_names = [n for n in filtered_names if n["name"].startswith(letter_filter)]
+            
+            if filtered_names:
+                st.session_state.suggested_name = random.choice(filtered_names)
+            else:
+                st.session_state.suggested_name = {"name": "None found", "meaning": "Try different filters", "gender": "-", "origin": "-"}
 
-    n1, n2, n3 = st.columns([2, 3, 2])
-    with n1:
-        n_name = st.text_input("Name")
-    with n2:
-        n_meaning = st.text_input("Meaning or Origin")
-    with n3:
-        n_pref = st.selectbox("Loved By", ["Both", "Mom", "Partner"])
-
-    if st.button("Save Name"):
-        if n_name.strip():
-            st.session_state.baby_names.append({"name": n_name.strip(), "meaning": n_meaning.strip(), "liked_by": n_pref})
-            st.success(f"Added {n_name} to your garden.")
+    # Display suggestion
+    if "suggested_name" in st.session_state and st.session_state.suggested_name["name"] != "None found":
+        n = st.session_state.suggested_name
+        st.markdown(f"""
+        <div class='metric-bubble' style='margin-bottom: 20px; background-color: #FDF9F1;'>
+            <h2 style='color:#5C4B41; margin-bottom:5px;'>{n['name']}</h2>
+            <p style='color:#7D746B; margin:0;'><b>Meaning:</b> {n['meaning']} &nbsp; | &nbsp; <b>Style:</b> {n['origin']} ({n['gender']})</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button(f"🤍 Save '{n['name']}' to Garden"):
+            if not any(saved['name'] == n['name'] for saved in st.session_state.baby_names):
+                st.session_state.baby_names.append(n)
+                st.success("Saved!")
 
     st.write("---")
+    st.markdown("#### Your Name Garden")
     if st.session_state.baby_names:
-        df_names = pd.DataFrame(st.session_state.baby_names)
-        df_names.columns = ["Name", "Meaning / Notes", "Loved By"]
-        st.dataframe(df_names, hide_index=True, use_container_width=True)
+        for saved in st.session_state.baby_names:
+            st.markdown(f"<div class='name-card'><b>{saved['name']}</b> ({saved['gender']}) — <i>{saved['meaning']}</i></div>", unsafe_allow_html=True)
     else:
-        st.info("Your naming list is empty. Add your favorite inspirations above.")
+        st.info("Your garden is empty. Generate and save names above!")
 
 # ----------------------------------------------------
-# TAB 6: PRENATAL MILESTONES ROADMAP
+# TAB 7: PRENATAL MILESTONES
 # ----------------------------------------------------
-with tab_care:
-    st.subheader("🩺 Standard Clinical Checkups Roadmap")
-    st.caption("A helpful overview of routine clinical check-ins across the 40 weeks.")
-
+with tabs[6]:
+    st.subheader("🩺 Checkups Roadmap")
     for appt in APPOINTMENTS_DATA:
         passed = tl["weeks"] >= appt["week"]
-        status = "✨ Completed / Passed" if passed else f"Upcoming (~Week {appt['week']})"
-        color = "#6E8271" if passed else "#A89B8F"
-
+        status, color = ("Completed", "#6E8271") if passed else (f"Upcoming (~Wk {appt['week']})", "#A89B8F")
         st.markdown(f"""
         <div class='main-card' style='border-left: 5px solid {color};'>
             <div style='display:flex; justify-content:space-between;'>
-                <span style='font-size:1.05rem; font-weight:700; color:#4E3E34;'>Week {appt['week']}: {appt['title']}</span>
-                <span style='font-size:0.85rem; color:{color}; font-weight:600;'>{status}</span>
+                <b>Week {appt['week']}: {appt['title']}</b> <span style='color:{color}; font-size:0.85em;'>{status}</span>
             </div>
-            <p style='color:#756559; margin-top:6px; margin-bottom:0;'>{appt['focus']}</p>
+            <p style='color:#756559; margin-top:5px;'>{appt['focus']}</p>
         </div>
         """, unsafe_allow_html=True)
